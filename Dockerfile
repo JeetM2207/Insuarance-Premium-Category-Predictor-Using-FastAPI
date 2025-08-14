@@ -1,18 +1,28 @@
-# Use Python 3.11 base image
 FROM python:3.11-slim
 
-# Set working directory
+# ---- set working directory ----
 WORKDIR /app
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# ---- system deps needed for some wheels ----
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+ && rm -rf /var/lib/apt/lists/*
 
-# Copy rest of application code
-COPY . .
+# ---- install python deps ----
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Expose the application port
-EXPOSE 8000
+# ---- copy project files ----
+COPY . /app
 
-# Command to start FastAPI application
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# ensure /app is on python path
+ENV PYTHONPATH=/app
+
+# set permissions (optional)
+RUN chmod -R 755 /app
+
+EXPOSE 10000
+
+# use PORT env var (Render uses PORT); default 10000
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-10000}"]
